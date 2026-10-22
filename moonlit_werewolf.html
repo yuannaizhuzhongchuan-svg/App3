@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#17152e">
+<title>月夜の人狼ゲーム</title>
+<style>
+:root{--bg:#17152e;--panel:#24213f;--panel2:#302b50;--text:#f8f6ff;--muted:#c4bfdc;--pink:#ff78ad;--blue:#8ac8ff;--gold:#ffd777;--green:#9be6b0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#38305e 0,#17152e 55%);color:var(--text);font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;min-height:100vh}
+main{max-width:760px;margin:auto;padding:24px 16px 48px}.hero{text-align:center;padding:14px 0 20px}.moon{font-size:42px}.eyebrow{color:var(--gold);letter-spacing:.18em;font-size:12px;font-weight:800}.hero h1{font-size:clamp(28px,6vw,42px);margin:6px 0}.hero p{color:var(--muted);margin:0}
+.card{background:rgba(36,33,63,.95);border:1px solid #51496f;border-radius:20px;padding:20px;margin:14px 0;box-shadow:0 12px 30px #08071640}.card h2{font-size:20px;margin:0 0 14px}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.row>*{flex:1;min-width:130px}label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}input,select{width:100%;padding:12px;border-radius:11px;border:1px solid #625a83;background:#17152e;color:white;font:inherit}
+button{font:inherit;font-weight:750;border:0;border-radius:12px;padding:13px 16px;cursor:pointer;transition:transform .12s,filter .12s}button:active{transform:scale(.98)}button:disabled{opacity:.4;cursor:not-allowed}.primary{background:linear-gradient(135deg,#ff78ad,#c18cff);color:#211632}.secondary{background:#403a61;color:white;border:1px solid #655c87}.danger{background:#7e3455;color:white}.full{width:100%;margin-top:12px}.hint{font-size:13px;color:var(--muted);line-height:1.7}.hidden{display:none!important}.player-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px}.player-chip{background:#302b50;padding:10px 12px;border-radius:10px;border:1px solid #494267}.player-chip small{display:block;color:var(--muted)}.rolebox{text-align:center;padding:26px 16px;background:#19172f;border:1px dashed #70658f;border-radius:16px;margin:14px 0}.role-icon{font-size:50px}.role-name{font-size:27px;font-weight:900;margin:6px}.role-desc{color:var(--muted);line-height:1.7}.notice{padding:12px 14px;border-radius:12px;background:#3a315a;margin:12px 0;line-height:1.6}.notice.good{background:#203f3a}.notice.bad{background:#512b43}.choice-list{display:grid;gap:8px;margin:12px 0}.choice{display:flex;align-items:center;gap:10px;padding:12px;background:#302b50;border:1px solid #554d73;border-radius:12px}.choice input{width:18px;min-width:18px;accent-color:#ff78ad}.choice span{flex:1}.phase{display:inline-block;background:#43395f;color:var(--gold);font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;margin-bottom:10px}.log{font-size:14px;color:var(--muted);line-height:1.8}.log div{border-bottom:1px solid #403a5d;padding:7px 0}.footer{text-align:center;color:#8f88b0;font-size:12px;margin-top:24px}
+</style>
+</head>
+<body>
+<main>
+<header class="hero"><div class="moon">🌕</div><div class="eyebrow">A MOONLIT MYSTERY</div><h1>月夜の人狼ゲーム</h1><p>話し合い、見抜き、生き残れ。</p></header>
+
+<section id="setup" class="card">
+<h2>🎮 ゲームを準備しよう</h2>
+<div class="row">
+<div><label for="count">プレイヤー人数</label><select id="count"><option>4</option><option>5</option><option selected>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
+<div><label for="wolves">人狼の人数</label><select id="wolves"><option value="1" selected>1人</option><option value="2">2人</option><option value="3">3人</option></select></div>
+</div>
+<p class="hint">プレイヤー名を入力してね。空欄は「プレイヤー1」のように自動で名前がつくよ。スマホ1台を順番に回して遊ぶ、対面用ゲームです。</p>
+<div id="nameFields" class="row"></div>
+<button class="primary full" id="startBtn">🌙 役職を配る</button>
+</section>
+
+<section id="game" class="hidden">
+<div class="card">
+<div class="phase" id="phasePill">役職確認</div>
+<h2 id="stageTitle">自分の役職を確認</h2>
+<p id="stageText" class="hint"></p>
+<div id="stageContent"></div>
+</div>
+<div class="card"><h2>📜 これまでの記録</h2><div id="log" class="log">まだ記録はありません。</div></div>
+</section>
+<div class="footer">友だちと遊ぶための非公式・人狼風ゲーム</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let players=[], roles=[], alive=[], turn=0, day=0, phase='setup', log=[], nightTarget=null, voteMap={};
+function buildNames(){const n=+$('count').value; $('nameFields').innerHTML=''; for(let i=0;i<n;i++){const d=document.createElement('div');d.style.flex='1 1 140px';d.innerHTML=`<label>プレイヤー${i+1}</label><input maxlength="12" data-name="${i}" placeholder="プレイヤー${i+1}">`;$('nameFields').appendChild(d)} updateWolfOptions();}
+function updateWolfOptions(){const n=+$('count').value;[...$('wolves').options].forEach(o=>o.disabled=+o.value>=n/2);if(+$('wolves').value>=n/2)$('wolves').value='1';}
+$('count').addEventListener('change',buildNames);$('wolves').addEventListener('change',updateWolfOptions);buildNames();
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function roleInfo(r){return ({'人狼':['🐺','人狼','夜に人狼以外の誰かを襲撃する。人狼が村人陣営と同数以上になると人狼陣営の勝利。'],'占い師':['🔮','占い師','夜に1人を占い、人狼かどうかを知ることができる。'],'騎士':['🛡️','騎士','夜に1人を守る。自分を守ることもできる。'],'村人':['🧑‍🌾','村人','特別な能力はない。昼の話し合いと投票で人狼を見つけよう。']})[r]}
+function addLog(s){log.unshift(s);renderLog()}
+function renderLog(){$('log').innerHTML=log.length?log.map(x=>`<div>${x}</div>`).join(''):'まだ記録はありません。'}
+function alivePlayers(){return players.filter(p=>alive.includes(p.id))}
+function begin(){const n=+$('count').value,w=+$('wolves').value;players=[...document.querySelectorAll('[data-name]')].map((e,i)=>({id:i,name:e.value.trim()||`プレイヤー${i+1}`}));let rr=Array(w).fill('人狼');rr.push('占い師','騎士');while(rr.length<n)rr.push('村人');roles=shuffle(rr);players.forEach((p,i)=>p.role=roles[i]);alive=players.map(p=>p.id);turn=0;day=0;log=[];phase='roles';$('setup').classList.add('hidden');$('game').classList.remove('hidden');addLog('ゲーム開始。全員、役職を確認しよう。');showRolePass();}
+$('startBtn').addEventListener('click',begin);
+function setStage(pill,title,text,content){$('phasePill').textContent=pill;$('stageTitle').textContent=title;$('stageText').textContent=text;$('stageContent').innerHTML=content}
+function showRolePass(){phase='roles';if(turn>=players.length){startNight();return}const p=players[turn];setStage('役職確認',`${p.name}さんの番です`,`ほかの人は画面を見ないでね。準備ができたら役職を確認しよう。`,`<button class="primary full" id="reveal">自分の役職を見る</button><div id="roleReveal"></div>`);$('reveal').onclick=()=>{const [ico,name,desc]=roleInfo(p.role);$('roleReveal').innerHTML=`<div class="rolebox"><div class="role-icon">${ico}</div><div class="role-name">${name}</div><div class="role-desc">${desc}</div></div><button class="secondary full" id="hideRole">役職を隠して次の人へ</button>`;$('reveal').classList.add('hidden');$('hideRole').onclick=()=>{turn++;showRolePass()}}}
+function startNight(){phase='night';day++;nightTarget=null;setStage('夜','夜が来た…','全員目を閉じる代わりに、画面を順番に回して行動を選びます。人狼・占い師・騎士の順に行動します。','<div class="notice">🌙 夜の行動を順番に処理します。画面を見られないように気をつけてね。</div><button class="primary full" id="nightGo">夜の行動を始める</button>');$('nightGo').onclick=()=>nightStep(0)}
+function nightStep(idx){const order=['人狼','占い師','騎士'];if(idx>=order.length){resolveNight();return}const role=order[idx],p=players.find(x=>alive.includes(x.id)&&x.role===role);if(!p){nightStep(idx+1);return}const options=alivePlayers().filter(x=>role!=='人狼'||x.role!=='人狼');if(!options.length){nightStep(idx+1);return}
+setStage('夜の行動',`${p.name}さんだけ見てね`,`${role}の行動を選んでください。他の人には見せないで！`, `<div class="notice">役職：${roleInfo(role)[0]} ${role}</div><label for="target">対象を選ぶ</label><select id="target">${options.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select><button class="primary full" id="act">決定して画面を隠す</button>`);
+$('act').onclick=()=>{const target=+$('target').value;if(role==='人狼')nightTarget=target;if(role==='占い師'){const t=players[target];alert(`${t.name}さんは${t.role==='人狼'?'人狼です！':'人狼ではありません。'}`)}if(role==='騎士')window.__guardTarget=target;setStage('夜の行動','画面を次の人へ','次の人に画面を渡してね。行動内容は記録に表示されません.','<button class="secondary full" id="nextNight">次へ</button>');$('nextNight').onclick=()=>nightStep(idx+1)};
+}
+function resolveNight(){let msg='';if(nightTarget===null)msg='今夜は誰も襲撃されなかった。';else if(nightTarget===window.__guardTarget)msg='騎士が襲撃から守った！ 今夜は犠牲者なし。';else{alive=alive.filter(id=>id!==nightTarget);msg=`昨夜、${players[nightTarget].name}さんが襲撃されました。`; }window.__guardTarget=null;nightTarget=null;addLog(`第${day}夜：${msg}`);if(checkWin())return;startDay(msg)}
+function startDay(msg){phase='day';setStage(`第${day}日目`,'朝になりました',msg,`<div class="notice">${msg}</div><p class="hint">みんなで話し合って、人狼だと思う人を決めよう。必要なら下の生存者一覧を確認してね。</p><div class="player-list">${alivePlayers().map(p=>`<div class="player-chip">🙂 ${p.name}<small>生存中</small></div>`).join('')}</div><button class="primary full" id="voteStart">🗳️ 投票を始める</button>`);$('voteStart').onclick=()=>startVote(0,{})}
+function startVote(i,votes){const voters=alivePlayers();if(i>=voters.length){resolveVote(votes);return}const voter=voters[i],opts=voters.filter(p=>p.id!==voter.id);setStage('昼・投票',`${voter.name}さんの投票`,`他の人に見られないように、人狼だと思う人を1人選んでください。`, `<label for="voteTarget">投票先</label><select id="voteTarget">${opts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select><button class="primary full" id="voteBtn">投票する</button>`);$('voteBtn').onclick=()=>{votes[voter.id]=+$('voteTarget').value;setStage('昼・投票','投票を記録しました','画面を次の人に渡してね。誰に投票したかは表示されません。','<button class="secondary full" id="nextVoter">次の人へ</button>');$('nextVoter').onclick=()=>startVote(i+1,votes)}}
+function resolveVote(votes){const tally={};Object.values(votes).forEach(id=>tally[id]=(tally[id]||0)+1);const max=Math.max(...Object.values(tally));const top=Object.keys(tally).filter(id=>tally[id]===max).map(Number);if(top.length!==1){addLog('投票結果：同票のため、処刑なし。');if(checkWin())return;startNight();return}const out=top[0];alive=alive.filter(id=>id!==out);addLog(`投票結果：${players[out].name}さんが処刑されました。`);if(checkWin())return;startNight()}
+function checkWin(){const wolves=alivePlayers().filter(p=>p.role==='人狼').length,others=alive.length-wolves;if(wolves===0){endGame('村人陣営の勝利！','人狼を全員見つけ出した！');return true}if(wolves>=others){endGame('人狼陣営の勝利！','人狼が村人陣営と同数以上になった！');return true}return false}
+function endGame(title,desc){phase='end';setStage('ゲーム終了',title,desc,`<div class="player-list">${players.map(p=>`<div class="player-chip">${alive.includes(p.id)?'💚':'☠️'} ${p.name}<small>${p.role}${alive.includes(p.id)?'・生存':'・脱落'}</small></div>`).join('')}</div><button class="primary full" id="again">もう一度遊ぶ</button>`);addLog(title);$('again').onclick=()=>{$('game').classList.add('hidden');$('setup').classList.remove('hidden');turn=0}}
+</script>
+</body>
+</html>
